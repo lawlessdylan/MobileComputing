@@ -1,0 +1,25 @@
+package com.college.enrolments;
+
+import android.content.Intent;
+import android.os.Bundle;
+import android.support.v4.app.FragmentTransaction;
+import android.support.v7.app.AppCompatActivity;
+
+
+public class EnrolmentActivity extends AppCompatActivity {
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState){
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_enrolment); //set content view to enrolment activity layout file
+
+        Intent intent = getIntent(); //reference to intent object that was used to start activity
+        int enrolmentId = intent.getIntExtra(EnrolmentFragment.ARG_ENROLMENT_ID, 0); //find enrolment ID, if there is no id then return 0
+
+        FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
+        EnrolmentFragment fragment = EnrolmentFragment.newInstance(enrolmentId); //creates instance of enrolment fragment and pass enrolment id
+        ft.add(R.id.enrolment_container, fragment); //add fragment to container
+        ft.commit(); //commits the fragment
+    }
+
+}
