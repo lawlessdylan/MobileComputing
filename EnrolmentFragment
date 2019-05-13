@@ -1,0 +1,326 @@
+package com.college.enrolments;
+
+import android.os.Bundle;
+import android.support.v4.app.Fragment;
+import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
+import android.widget.EditText;
+import android.widget.RadioButton;
+import android.widget.Spinner;
+import android.widget.Toast;
+
+import com.college.enrolments.model.Course;
+import com.college.enrolments.model.Enrolment;
+import com.college.enrolments.model.Model;
+import com.college.enrolments.model.Student;
+import com.college.enrolments.model.api.AbstractAPIListener;
+
+import java.util.List;
+
+public class EnrolmentFragment extends Fragment {
+
+    public static final String ARG_ENROLMENT_ID = "enrolment_id";
+
+    public static EnrolmentFragment newInstance(int enrolmentId){ //used to create instance of enrolment fragment
+        EnrolmentFragment fragment = new EnrolmentFragment();  //creates empty fragment
+        Bundle args = new Bundle(); //Creates Bundle
+        args.putInt(ARG_ENROLMENT_ID, enrolmentId); //putting enrolment id into created Bundle
+        fragment.setArguments(args); //passing parameters through arguments method, setting bundle as arguments
+        return fragment; //returning fragment
+
+    }
+
+
+    private EditText mDateText;
+    private EditText mTimeText;
+    private Spinner mCoursesSpinner;
+    private Spinner mStudentsSpinner;
+    private RadioButton mRegisteredButton;
+    private RadioButton mAttendingButton;
+    private RadioButton mDeferredButton;
+    private RadioButton mWithdrawnButton;
+
+    private Model mModel;
+    private int mEnrolmentId;
+    private Enrolment mEnrolment;
+    private boolean mEditMode; //default initialised to false
+
+    public EnrolmentFragment() { } //Constructor with no parameters because class extends fragment
+
+    public void onCreate(Bundle savedInstanceState){
+        super.onCreate(savedInstanceState); //calls the corresponding method in super class
+        if (getArguments() != null){ //checks to see if there are arguments
+            Bundle arguments = getArguments();
+            mEnrolmentId = arguments.getInt(ARG_ENROLMENT_ID); //retrieve arguments and enrolment id
+
+            mModel = Model.getInstance(this.getActivity().getApplication()); //retrieving reference to model object
+            if (mEnrolmentId == 0){ //if enrolment id is 0
+                mEnrolment = new Enrolment(0, "", "", 0, 0, Enrolment.REGISTERED);
+                //create new enrolment if enrolment id is 0, no data in new enrolment
+            }
+            else {
+
+                mEnrolment = mModel.findEnrolmentById(mEnrolmentId); //if enrolment exists
+
+            }
+
+            setHasOptionsMenu(true); //Shows items in actionbar,
+        }
+    }
+
+    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState){
+        return inflater.inflate(R.layout.fragment_enrolment, container, false); //expand the file fragment_enrolment located in the layout file
+    }
+
+    public void onViewCreated(View view, Bundle savedInstanceState){
+        mDateText = view.findViewById(R.id.dateText); //getting reference to the elements on the form
+        mTimeText = view.findViewById(R.id.timeText);
+        mCoursesSpinner = view.findViewById(R.id.coursesSpinner);
+        mStudentsSpinner = view.findViewById(R.id.studentsSpinner);
+        mRegisteredButton = view.findViewById(R.id.radio_registered);
+        mAttendingButton = view.findViewById(R.id.radio_attending);
+        mDeferredButton = view.findViewById(R.id.radio_deferred);
+        mWithdrawnButton = view.findViewById(R.id.radio_withdrawn);
+
+        populateForm();
+
+        if (mEnrolmentId == 0){ //if enrolment id is 0, set edit mode to true, this happens when creating a new enrolment
+            setEditMode(true);
+        }
+        else{
+            setEditMode(false); //if not true set edit mode to false
+        }
+
+    }
+
+    public void  onCreateOptionsMenu(Menu menu, MenuInflater inflater){
+        inflater.inflate(R.menu.action_bar_menu, menu); //reads menu items from the action bar menu
+        super.onCreateOptionsMenu(menu, inflater);
+    }
+
+    public void onPrepareOptionsMenu(Menu menu) {
+        MenuItem edit = menu.findItem(R.id.action_edit); //references menu item created in onCreateOptionsMenu method
+
+        if (mEditMode){ //if true then show save icon, true when editing an enrolment
+            edit.setIcon(R.drawable.ic_baseline_save_24px); //set icon to save, icon saved in drawable folder
+            edit.setTitle("Save"); //set the title to save
+        }
+        else{ //otherwise the user is not editting an enrolment so show the edit option within the action bar
+            edit.setIcon(R.drawable.ic_baseline_edit_24px);  //set icon to edit, icon saved in drawable folder
+            edit.setTitle("Edit"); //set the title to edit
+        }
+        super.onPrepareOptionsMenu(menu); //
+    }
+
+    public boolean onOptionsItemSelected(MenuItem item){ //passes
+        switch (item.getItemId()) {  //switch statement
+            case R.id.action_edit: {
+                if (mEditMode) { //if user is in edit mode
+                    Enrolment enrolment = getFormData();  //calls getFormData if in edit mode, retrieves the information and stores in enrolment object
+                    if (mEnrolmentId == 0) { //checking if  or creating new enrolment by checking if id is 0
+                        storeEnrolment(enrolment); //calls the storeEnrolment method and passes the enrolment
+                    }
+                    else {
+                        updateEnrolment(enrolment);
+                    }
+                }
+                else {
+                    Toast.makeText(getActivity(), "Edit selected", Toast.LENGTH_LONG).show(); //toast to say edit was selected
+                }
+                setEditMode(!mEditMode); //changes value of edit mode
+                getActivity().invalidateOptionsMenu(); //changes the icon
+
+                return false; //returns false
+            }
+            case R.id.action_delete: { //when delete button is clicked
+                mModel.deleteEnrolment(mEnrolment, new AbstractAPIListener(){ //calls deleteEnrolment in model object and passes enrolment object to be deleted, subclass of AbstractAPIListener
+                    @Override
+                    public void onEnrolmentDeleted(Enrolment deletedEnrolment){ //Overrides and defines onEnrolmentDeleted
+                        if (deletedEnrolment == null){ //if enrolment to be deleted is null then
+                            Toast.makeText(getActivity(), "Enrolment not deleted", Toast.LENGTH_LONG).show(); //display message edit not deleted
+
+                        }
+                        else{//otherwise
+                            mModel.deleteEnrolment(deletedEnrolment); //remove enrolment from model object
+                            Toast.makeText(getActivity(), "Enrolment deleted", Toast.LENGTH_LONG).show(); //display message saying enrolment deleted
+                            EnrolmentFragment.this.getActivity().finish(); //finish the activity and go back to enrolments list
+                        }
+                    }
+                });
+                return false;
+            }
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    private void storeEnrolment(Enrolment enrolment){
+        mModel.storeEnrolment(enrolment, new AbstractAPIListener(){ //calls method in model object and passes enrolment to be stored
+            @Override
+            public void onEnrolmentStored(Enrolment storedEnrolment){ //redefining and overriding the onEnrolmentStored method, uses storedEnrolment obj
+                if (storedEnrolment == null){ //if is null then display a message saying could not store enrolment
+                    Toast.makeText(getActivity(), "Enrolment not stored", Toast.LENGTH_LONG).show();
+                }
+                else { //otherwise call setEnrolment method and pass the storedEnrolment object
+                    setEnrolment(storedEnrolment);
+                    mModel.storeEnrolment(mEnrolment); //stores mEnrolment within model
+                    Toast.makeText(getActivity(), "Enrolment stored", Toast.LENGTH_LONG).show(); //display message when successfully stored enrolment
+                }
+            }
+        });
+
+    }
+
+    private void updateEnrolment(Enrolment enrolment){
+        mModel.updateEnrolment(enrolment, new AbstractAPIListener(){ //calls updateEnrolment method within model, passes reference to the AbstractAPIListener
+           @Override
+            public void onEnrolmentUpdated(Enrolment updatedEnrolment){ //subclass of onEnrolmentUpdated and redefine
+               if (updatedEnrolment == null){ //references the updatedEnrolment, if null then show message not updated
+                   Toast.makeText(getActivity(), "Enrolment not updated", Toast.LENGTH_LONG).show();
+               }
+               else{
+                   setEnrolment(updatedEnrolment); //otherwise set the enrolment to the updatedEnrolment object
+                   Toast.makeText(getActivity(), "Enrolment updated", Toast.LENGTH_LONG).show(); //display message enrolment updated
+
+               }
+           }
+        });
+    }
+
+    public void populateForm(){
+
+        mDateText.setText(mEnrolment.getDate()); //gets reference to date of enrolment and sets the date field as the enrolments date. Uses the getDate method located in Enrolment class
+        mTimeText.setText(mEnrolment.getTime());
+
+        populateCourseSpinner(); //calls populateCourseSpinner method
+        populateStudentSpinner(); //calls populateStudentSpinner method
+
+        mRegisteredButton.setChecked(mEnrolment.getStatus().equals(Enrolment.REGISTERED)); //set checked if the status of the enrolment is REGISTERED
+        mAttendingButton.setChecked(mEnrolment.getStatus().equals(Enrolment.ATTENDING)); //set checked if the status of the enrolment is ATTENDING
+        mDeferredButton.setChecked(mEnrolment.getStatus().equals(Enrolment.DEFERRED)); //set checked if the status of the enrolment is DEFERRED
+        mWithdrawnButton.setChecked(mEnrolment.getStatus().equals(Enrolment.WITHDRAWN)); //set checked if the status of the enrolment is WITHDRAWN
+
+
+    }
+
+    private void populateCourseSpinner()  {
+        List<Course> courses = mModel.getCourses(); //gets list of courses from model object
+        final ArrayAdapter<Course> coursesAdapter = new ArrayAdapter<>( //creates array adapter, specifies the list of items displayed in the spinner (courses)
+            this.getActivity(), android.R.layout.simple_spinner_item, courses); //takes reference to Activity
+        coursesAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);  //instance of class array adapter
+        mCoursesSpinner.setAdapter(coursesAdapter); //set adapter of courseSpinner object to course adapter
+
+        if (courses.size() == 0){ //if there are no courses in the list
+            mModel.loadCourses(new AbstractAPIListener() { //calls loadCourses method in model object, takes AbstractAPIListener as a parameter
+                @Override
+                public void onCoursesLoaded(List<Course> courseList){ //Overrides onCoursesLoaded, passes list of courses as parameter
+                    if (courseList != null && !courseList.isEmpty()) { //makes sure the list is not empty
+                        mModel.addCourses(courseList); //adds the courses to the model
+                        coursesAdapter.notifyDataSetChanged(); //notifies adapter that the data set has changed
+                        mCoursesSpinner.setSelection(coursesAdapter.getPosition(mEnrolment.getCourse()));
+                        //finds course associated with the enrolment and finds its position, then sets as the item displayed in the spinner
+                    }
+                }
+            });
+        }
+        else {
+            mCoursesSpinner.setSelection(coursesAdapter.getPosition(mEnrolment.getCourse()));
+        }
+
+    }
+
+    private void populateStudentSpinner(){
+        List<Student> students = mModel.getStudents(); //gets list of courses from model object
+        final ArrayAdapter<Student> studentsAdapter = new ArrayAdapter<>( //creates array adapter, specifies the list of items displayed in the spinner (students)
+                this.getActivity(), android.R.layout.simple_spinner_item, students); //takes reference to Activity
+        studentsAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);//instance of class array adapter
+        mStudentsSpinner.setAdapter(studentsAdapter); //sets adapter of studentSpinner object to student adapter
+
+        if (students.size() == 0){ //if there are no students in the list
+            mModel.loadStudents(new AbstractAPIListener(){ //calls loadStudents method in model object, takes AbstractAPIListener as a parameter
+                @Override
+                public void onStudentsLoaded(List<Student> studentList){ //Overrides onStudentsLoaded, passes list of students as parameter
+                    if (studentList != null && !studentList.isEmpty()){ //makes sure the list is not empty
+                        mModel.addStudents(studentList); //adds the students to the model
+                        studentsAdapter.notifyDataSetChanged(); //notifies adapter that the data set has changed
+                        mStudentsSpinner.setSelection(studentsAdapter.getPosition(mEnrolment.getStudent()));
+                        //finds student associated with the enrolment and finds its position, then sets as the item displayed in the spinner
+                    }
+                }
+            });
+        }
+        else {
+            mStudentsSpinner.setSelection(studentsAdapter.getPosition(mEnrolment.getStudent()));
+        }
+
+    }
+
+    private void setEditMode(boolean editMode){
+
+        mEditMode = editMode; //sets the value of mEdiMode to the passed in parameter
+        mDateText.setEnabled(editMode); //enables form element depending on what editMode is (true or false)
+        mTimeText.setEnabled(editMode);
+        mCoursesSpinner.setEnabled(editMode);
+        mStudentsSpinner.setEnabled(editMode);
+        mRegisteredButton.setEnabled(editMode);
+        mAttendingButton.setEnabled(editMode);
+        mDeferredButton.setEnabled(editMode);
+        mWithdrawnButton.setEnabled(editMode);
+
+    }
+
+    private Enrolment getFormData(){
+        int id = mEnrolment.getId(); //get enrolment id
+        //gets all data from form
+        String date = mDateText.getText().toString();
+        String time = mTimeText.getText().toString();
+        Course course = (Course) mCoursesSpinner.getSelectedItem();
+        int courseId = course.getId();
+        Student student = (Student) mStudentsSpinner.getSelectedItem();
+        int studentId = student.getId();
+        String status = getFormStatus(); //checks what radio button is checked for the enrolment
+
+        Enrolment enrolment = new Enrolment(id, date, time, courseId, studentId, status); //stores information from form in an enrolment object
+        enrolment.setCourse(course); //sets the course of the enrolment to the course selected in form
+        enrolment.setStudent(student); //sets the student of the enrolment to the student selected in form
+
+        return enrolment; //returns the enrolment object
+
+
+    }
+
+    private String getFormStatus(){
+            String status = null;
+            if (mRegisteredButton.isChecked()){ //if registered radio button is checked set status to registered
+                status = Enrolment.REGISTERED;
+            }
+        else if (mAttendingButton.isChecked()){ //if registered radio button is checked set status to attending
+            status = Enrolment.ATTENDING;
+        }
+        else if (mDeferredButton.isChecked()){ //if registered radio button is checked set status to deferred
+            status = Enrolment.DEFERRED;
+        }
+        else if (mWithdrawnButton.isChecked()){ //if registered radio button is checked set status to withdrawn
+            status = Enrolment.WITHDRAWN;
+        }
+        return status; //returns status
+    }
+
+    private void setEnrolment(Enrolment enrolment){
+        mEnrolment.setId(enrolment.getId());
+        mEnrolment.setDate(enrolment.getDate());
+        mEnrolment.setTime(enrolment.getTime());
+        mEnrolment.setCourseId(enrolment.getCourseId());
+        mEnrolment.setStudentId(enrolment.getStudentId());
+        mEnrolment.setStatus(enrolment.getStatus());
+        Course course = mModel.findCourseById(enrolment.getCourseId());
+        mEnrolment.setCourse(course);
+        Student student = mModel.findStudentById(enrolment.getStudentId());
+        mEnrolment.setStudent(student);
+
+    }
+}
