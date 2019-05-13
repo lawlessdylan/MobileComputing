@@ -1,0 +1,127 @@
+package com.college.enrolments;
+
+import android.app.Application;
+import android.content.Context;
+import android.os.Bundle;
+import android.support.v4.app.Fragment;
+import android.support.v7.widget.DividerItemDecoration;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+
+import com.college.enrolments.model.Enrolment;
+import com.college.enrolments.model.Model;
+import com.college.enrolments.model.api.AbstractAPIListener;
+
+import java.util.List;
+
+
+/**
+ * A simple {@link Fragment} subclass.
+ * Activities that contain this fragment must implement the
+ * {@link EnrolmentsFragment.OnFragmentInteractionListener} interface
+ * to handle interaction events.
+ * Use the {@link EnrolmentsFragment#newInstance} factory method to
+ * create an instance of this fragment.
+ */
+public class EnrolmentsFragment extends Fragment { //extends fragment class
+
+
+
+    // TODO: Rename and change types and number of parameters
+
+    public static EnrolmentsFragment newInstance() {
+        EnrolmentsFragment fragment = new EnrolmentsFragment(); //create instance of enrolments fragment
+
+        return fragment; //returns the instance
+    }
+
+    private OnFragmentInteractionListener mListener; //listener object, listens for events within fragment
+
+    public EnrolmentsFragment() {
+
+    }
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+    }
+
+    @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) { //create instance of enrolments fragment layout file
+        // Inflate the layout for this fragment
+        return inflater.inflate(R.layout.fragment_enrolments, container, false);
+    }
+
+    @Override
+    public void onViewCreated(View view, Bundle savedInstanceState){ //references view
+        if (view instanceof RecyclerView) { //checks if the view is a recycler view
+            Context context = view.getContext(); //get reference to context
+            RecyclerView recyclerView = (RecyclerView) view; //cast view object into recycler view object
+            recyclerView.setLayoutManager(new LinearLayoutManager(context)); //set layout manager to linear layout
+
+            DividerItemDecoration decoration = new DividerItemDecoration(context, DividerItemDecoration.VERTICAL); //creating decorator item, puts divider in each row
+            recyclerView.addItemDecoration(decoration); // reference to app object
+
+            Application application =  this.getActivity().getApplication(); //referencing application object
+            Model model = Model.getInstance(application); //referencing the model object
+            final List<Enrolment> enrolments = model.getEnrolments(); //retrieving enrolments
+
+            final EnrolmentsAdapter adapter = new EnrolmentsAdapter(this, enrolments); //creates adapter object that creates viewholders for each enrolment
+            recyclerView.setAdapter(adapter); //sets adapter object to adapter for recycler view
+
+            model.loadEnrolments(new AbstractAPIListener(){//load enrolments from REST API, invoke method on listener object
+                @Override
+                public void onEnrolmentsLoaded(List<Enrolment> loadedEnrolments) { //overrides method, when list of enrolments is returned from REST API
+                    enrolments.clear(); //clears enrolments list
+                    enrolments.addAll(loadedEnrolments); //adds all loaded enrolments to enrolments list
+                    adapter.notifyDataSetChanged(); //notify adapter that dataSet has changed
+                }
+            });
+
+
+        }
+    }
+
+    @Override
+    public void onAttach(Context context) {
+        super.onAttach(context);
+        if (context instanceof OnFragmentInteractionListener) { //does this activity implement the interface
+            mListener = (OnFragmentInteractionListener) context;//store reference to activity in mListener variable if activity implements interface
+
+        } else {
+            throw new RuntimeException(context.toString() //throw exception
+                    + " must implement OnFragmentInteractionListener");
+        }
+    }
+
+    @Override
+    public void onDetach() {
+        super.onDetach();
+        mListener = null;
+    }
+
+    public void onItemSelected(Enrolment enrolment) { //passes enrolment object on event
+        if (mListener != null) {
+            mListener.onItemSelected(enrolment); //defined in interface
+        }
+    }
+
+
+    /**
+     * This interface must be implemented by activities that contain this
+     * fragment to allow an interaction in this fragment to be communicated
+     * to the activity and potentially other fragments contained in that
+     * activity.
+     * <p>
+     * See the Android Training lesson <a href=
+     * "http://developer.android.com/training/basics/fragments/communicating.html"
+     * >Communicating with Other Fragments</a> for more information.
+     */
+    public interface OnFragmentInteractionListener {
+        void onItemSelected(Enrolment enrolment); //activity implements this method
+    }
+}
