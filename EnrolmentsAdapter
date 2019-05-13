@@ -1,0 +1,73 @@
+package com.college.enrolments;
+
+import android.support.annotation.NonNull;
+import android.support.v7.widget.RecyclerView;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.TextView;
+
+import com.college.enrolments.model.Enrolment;
+
+import java.util.List;
+
+class EnrolmentsAdapter extends RecyclerView.Adapter<EnrolmentsAdapter.ViewHolder> { //extends view holder
+
+
+    public class ViewHolder extends RecyclerView.ViewHolder{
+
+        public final View mView;
+        public final TextView mDateView;
+        public final TextView mCourseView;
+        public final TextView mStudentView;
+        public Enrolment mEnrolment;
+
+        public ViewHolder(View view){ //reference to view object
+            super(view);
+            mView = view;
+            mDateView = view.findViewById(R.id.enrolment_item_date);
+            mCourseView = view.findViewById(R.id.enrolment_item_course);
+            mStudentView = view.findViewById(R.id.enrolment_item_student);
+
+        }
+    }
+
+    private final EnrolmentsFragment mFragment; ////instance variable of fragment
+    private final List<Enrolment> mEnrolments; //instance variable of enrolments
+
+    public EnrolmentsAdapter(EnrolmentsFragment enrolmentsFragment, List<Enrolment> enrolments) { //takes reference to list of enrolments
+        mFragment = enrolmentsFragment;
+        mEnrolments = enrolments;
+    }
+
+    @NonNull
+    @Override
+    public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int type) {
+        LayoutInflater inflater = LayoutInflater.from(parent.getContext()); //get inflater object
+        View view = inflater.inflate(R.layout.fragment_enrolments_item, parent, false); //use inflater to inflate layout file
+        ViewHolder viewHolder = new ViewHolder(view); //view object in view holder
+        return viewHolder; //returns view object
+    }
+
+    @Override
+    public void onBindViewHolder(@NonNull ViewHolder viewHolder, int i) { //binds view holder to a enrolment, takes reference to view holder object
+        final Enrolment enrolment = mEnrolments.get(i); //uses index (int i) to retrieve enrolment object from list of enrolments
+        viewHolder.mDateView.setText(enrolment.getDate()); //takes enrolment date from enrolment object and stores in text view
+        viewHolder.mCourseView.setText(enrolment.getCourse().getTitle()); //takes enrolments course title from enrolment object and stores in text view
+        viewHolder.mStudentView.setText(enrolment.getStudent().getName()); //takes enrolments student name from enrolment object and stores in text view
+        viewHolder.mEnrolment = enrolment; //gets reference to enrolment object for view holder
+
+        viewHolder.mView.setOnClickListener(new View.OnClickListener() { //on click listener
+            @Override
+            public void onClick(View v) {
+                mFragment.onItemSelected(enrolment); //pass enrolment to onItemSelected when clicked
+            }
+        });
+
+    }
+
+    @Override
+    public int getItemCount() { //how many items in adapter
+        return mEnrolments.size(); //returns size of list
+    }
+}
